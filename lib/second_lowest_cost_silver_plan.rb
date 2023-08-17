@@ -7,6 +7,7 @@ class SecondLowestCostSilverPlan
   SLCSP_CSV = 'slcsp.csv'
   PLANS_CSV = 'plans.csv'
   ZIPS_CSV = 'zips.csv'
+  MEMORY_SAFE_CSV_SIZE = 20_971_520 # 20 MB in bytes
 
   def generate
     write_to_csv(generate_data)
@@ -39,7 +40,7 @@ class SecondLowestCostSilverPlan
   end
 
   def find_zip_data(zipcode)
-    zip_rows = read_csv(ZIPS_CSV).select do |row|
+    zip_rows = zips_csv.select do |row|
       row['zipcode'] == zipcode
     end
 
@@ -51,7 +52,7 @@ class SecondLowestCostSilverPlan
   end
 
   def find_silver_plan_rates(zip_data)
-    read_csv(PLANS_CSV).filter_map do |plan|
+    plans_csv.filter_map do |plan|
       plan['rate'] if plan['metal_level'] == METAL_LEVEL &&
                       plan['state'] == zip_data['state'] &&
                       plan['rate_area'] == zip_data['rate_area']
@@ -65,5 +66,22 @@ class SecondLowestCostSilverPlan
 
   def read_csv(name)
     CSV.foreach(name, headers: true)
+  end
+
+  # load small csvs into memory for faster processing
+  def plans_csv
+    if File.size(PLANS_CSV) < MEMORY_SAFE_CSV_SIZE
+      @plans_csv ||= read_csv(PLANS_CSV).to_a
+    else
+      read_csv(PLANS_CSV)
+    end
+  end
+
+  def zips_csv
+    if File.size(ZIPS_CSV) < MEMORY_SAFE_CSV_SIZE
+      @zips_csv ||= read_csv(ZIPS_CSV).to_a
+    else
+      read_csv(ZIPS_CSV)
+    end
   end
 end
